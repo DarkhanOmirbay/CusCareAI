@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.models import User,Chat,Message
 from app.core.logging import logger
+from sqlalchemy import select
 
 async def get_or_create_user(session: AsyncSession, user_id: int, full_name: str = None):
     user = await session.get(User, user_id)
@@ -39,3 +40,10 @@ async def save_message(session:AsyncSession,user_id:str,chat_id:str,last_message
     
     return msg
 
+async def get_chat_history(session:AsyncSession,chat_id:str,limit:int=10):
+    result = await session.execute(
+        select(Message).where(Message.chat_id==chat_id).order_by(Message.created_at.desc()).limit(limit=limit))
+    
+    messages = result.scalars().all()
+    
+    return list(reversed(messages))

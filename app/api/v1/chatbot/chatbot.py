@@ -13,8 +13,21 @@ router = APIRouter()
 @router.post("/chat")
 async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper.scoped_session_dependency)):
     logger.info(f" chat view (chat_request): {chat_request}")
+    
     try:
-        result = await agent.ainvoke({"last_message":chat_request.last_message})
+        history = await crud.get_chat_history(session=session,chat_id=chat_request.chat_id)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR GET CHAT HISTORY {str(e)}")
+    
+    conversation = ""
+    for msg in history:
+        conversation += f"User: {msg.message}\n"
+        if msg.response:
+            conversation += f"Bot: {msg.response}\n"
+    conversation += f"User: {chat_request.last_message}\nBot:"
+    
+    try:
+        result = await agent.ainvoke({"last_message":conversation})
         response = result["response"]
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR AINVOKE {str(e)}")
