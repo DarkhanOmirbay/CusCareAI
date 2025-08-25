@@ -21,14 +21,14 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
     
     try:
         saved = await crud.save_message(session=session,user_id=int(chat_request.user_id),
-                                  chat_id=int(chat_request.chat_id),last_message=chat_request.last_message,response=response)
+                                  chat_id=chat_request.chat_id,last_message=chat_request.last_message,response=response)
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR SAVE MESSAGE {str(e)}")
     
-    # try:
-    #     code = omnidesk_api.send_message(content=response,chat_id=chat_request.chat_id)
-    # except Exception as e:
-    #     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,f"ERROR SEND MESSAGE{str(e)}")
+    try:
+        code = omnidesk_api.send_message(content=response,chat_id=chat_request.chat_id)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR SEND MESSAGE {str(e)}")
     
     return {"answer":result["response"],
             "message":saved}
