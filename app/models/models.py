@@ -18,7 +18,7 @@ class User(Base):
 class Chat(Base):
     __tablename__ = "chats"
     
-    chat_id = Column(BIGINT,primary_key=True)
+    chat_id = Column(String,primary_key=True)
     user_id = Column(BIGINT,ForeignKey("users.user_id",ondelete="CASCADE"))
     created_at = Column(DateTime(timezone=True),server_default=func.now())
     
@@ -29,7 +29,7 @@ class Message(Base):
     __tablename__ = "messages"
     
     message_id = Column(INTEGER,primary_key=True,autoincrement=True)
-    chat_id = Column(BIGINT,ForeignKey("chats.chat_id",ondelete="CASCADE"))
+    chat_id = Column(String,ForeignKey("chats.chat_id",ondelete="CASCADE"))
     user_id = Column(BIGINT,ForeignKey("users.user_id",ondelete="CASCADE"))
     message = Column(Text,nullable=True)
     response = Column(Text,nullable=True)
