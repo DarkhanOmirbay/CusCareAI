@@ -8,8 +8,12 @@ wheels/
 
 # Virtual environments
 .venv
-.env
 omnidesk_webhook.json
 audio_webhook.json
 photo_webhook.json
 logs.log
+README.md
+Dockerfile
+alembic.ini
+docker-compose.yml
+migrations
