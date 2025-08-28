@@ -1,5 +1,4 @@
-import uuid
-from sqlalchemy import Column,String,ForeignKey,Text,DateTime
+from sqlalchemy import Column,String,ForeignKey,Text,DateTime,Boolean
 from sqlalchemy.dialects.postgresql import BIGINT,INTEGER
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -21,6 +20,7 @@ class Chat(Base):
     chat_id = Column(String,primary_key=True)
     user_id = Column(BIGINT,ForeignKey("users.user_id",ondelete="CASCADE"))
     created_at = Column(DateTime(timezone=True),server_default=func.now())
+    labels_and_group = Column(Boolean,nullable=False,server_default="false")
     
     user = relationship("User",back_populates="chats")
     messages = relationship("Message",back_populates="chat")
