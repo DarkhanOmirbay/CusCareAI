@@ -14,7 +14,6 @@ photo_webhook.json
 logs.log
 README.md
 Dockerfile
-alembic.ini
 docker-compose.yml
 migrations
 ssh

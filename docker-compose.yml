@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: cuscareai_app
     ports:
-      - "8080:8080"
+      - "8181:8181"
     depends_on:
       - database
     networks:
