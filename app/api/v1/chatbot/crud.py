@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.models import User,Chat,Message
 from app.core.logging import logger
-from sqlalchemy import select
+from sqlalchemy import select,update
 
 async def get_or_create_user(session: AsyncSession, user_id: int, full_name: str = None):
     user = await session.get(User, user_id)
@@ -47,3 +47,25 @@ async def get_chat_history(session:AsyncSession,chat_id:str,limit:int=10):
     messages = result.scalars().all()
     
     return list(reversed(messages))
+
+async def get_last_message(session:AsyncSession,chat_id:str,user_id:int,limit:int=1):
+    result = await session.execute(
+        select(Message).where(Message.chat_id==chat_id).where(Message.user_id==user_id).order_by(Message.created_at.desc()).limit(limit=1)
+    )
+    message = result.scalars().first()
+    
+    return message
+
+async def get_chat_by_id(session:AsyncSession,chat_id:str):
+    result = await session.execute(
+     select(Chat).where(Chat.chat_id==chat_id)   
+    )
+    chat = result.scalars().first()
+    
+    return chat
+async def set_labels_group(session:AsyncSession,chat_id:str):
+    result = await session.execute(
+        update(Chat).where(Chat.chat_id == chat_id).values(labels_and_group=True)
+    )
+    await session.commit()
+    return result
