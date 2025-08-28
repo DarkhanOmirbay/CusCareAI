@@ -7,11 +7,6 @@ class ChatRequest(BaseModel):
     
     
 
-# user_id -> users(user_id PK int,full_name, user_email,user_phone,user_company_id FK)
-# company_id -> companies(company_id,name etc)
-# user_message , answer_from_ai I should store -> (user_id FK,chat_id,user_message,answer_to_the_message)
 
-
-    
 
 
