@@ -35,10 +35,12 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
         conversation = ""
         for msg in history:
             local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-            conversation += f"User: {msg.message}\n Created_at: {local_time.strftime('%Y-%m-%d %H:%M:%S %z')}\n"
+            conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
             if msg.response:
+                last_message_time = datetime.now()
+                local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
                 conversation += f"Bot: {msg.response}\n"
-        conversation += f"User(message with image): {chat_request.last_message}\nBot:"
+        conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message})(message with image): {chat_request.last_message}\nBot:"
 
         message = HumanMessage(content=[
             {"type": "text", "text": conversation},
@@ -58,10 +60,12 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
         conversation = ""
         for msg in history:
             local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-            conversation += f"User: {msg.message}\n Created_at: {local_time.strftime('%Y-%m-%d %H:%M:%S %z')}\n"
+            conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
             if msg.response:
+                last_message_time = datetime.now()
+                local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
                 conversation += f"Bot: {msg.response}\n"
-        conversation += f"User:{chat_request.last_message}\nUser's Audio transcription: {transcription.text}\nBot:"
+        conversation += f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nUser's Audio transcription: {transcription.text}\nBot:"
         
         message = HumanMessage(content=[
             {"type": "text", "text": conversation},
@@ -72,12 +76,12 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
         conversation = ""
         for msg in history:
             local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-            conversation += f"User: {msg.message}\n Created_at: {local_time.strftime('%Y-%m-%d %H:%M:%S %z')}\n"
+            conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
             if msg.response:
                 conversation += f"Bot: {msg.response}\n"
         last_message_time = datetime.now()
         local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
-        conversation += f"User: {chat_request.last_message} в {local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}\nBot:"
+        conversation += f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nBot:"
         
         message = HumanMessage(content=conversation)
     
