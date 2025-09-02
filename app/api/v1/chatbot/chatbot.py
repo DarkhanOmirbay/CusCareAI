@@ -9,7 +9,7 @@ from app.api.v1.chatbot import crud
 from app.api.v1.chatbot.helper import get_message_type
 from langchain_core.messages import HumanMessage,AIMessage
 import io
-from app.api.v1.chatbot.labels import LABELS,SUCCESS_ID,SUPPORT_ID,SYSTEM_PROMPT
+from app.api.v1.chatbot.labels import LABELS,SUCCESS_ID,SUPPORT_ID,SYSTEM_PROMPT,SYSTEM_PROMPT_V2
 import json
 from datetime import datetime
 
@@ -87,7 +87,7 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
     
     try:
         system_message = AIMessage(
-            content=SYSTEM_PROMPT
+            content=SYSTEM_PROMPT_V2
         )
         result = await agent.ainvoke({"last_message": message,"system_message":system_message})
         response_invoke = result["response"]
