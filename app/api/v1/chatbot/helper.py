@@ -19,7 +19,6 @@ async def get_message_type(last_message:str) -> str:
                 return "image"
             elif url.lower().endswith((".mp3", ".mpeg", ".wav", ".ogg", ".m4a",".opus")):
                 return "audio"    
-            else: 
-                return "text"    
+    return "text"    
 
 
