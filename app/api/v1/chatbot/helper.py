@@ -17,8 +17,9 @@ async def get_message_type(last_message:str) -> str:
         if "attachment/download/chat/" in url:
             if url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp")):
                 return "image"
-            if url.lower().endswith((".mp3", ".mpeg", ".wav", ".ogg", ".m4a",".opus")):
+            elif url.lower().endswith((".mp3", ".mpeg", ".wav", ".ogg", ".m4a",".opus")):
                 return "audio"    
-    return "text"    
+            else: 
+                return "text"    
 
 
