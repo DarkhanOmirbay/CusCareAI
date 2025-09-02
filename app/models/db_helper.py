@@ -30,9 +30,15 @@ class DatabaseHelper:
     
     async def scoped_session_dependency(self)->AsyncSession:
         session = self.get_scoped_session()
-        yield session
-        await session.close()
-        
+        try:
+            yield session
+            await session.commit()  
+        except Exception:
+            await session.rollback() 
+            raise
+        finally:
+            await session.close()   
+            
 
 
 db_helper = DatabaseHelper(url=settings.DB_URL,echo=settings.DB_ECHO)
