@@ -29,9 +29,11 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
     
     
     messageType = await get_message_type(last_message=chat_request.last_message)
+    logger.info(f"message type : {messageType}")
     
     if messageType == "image":
         image_data = await omnidesk_api.download_image(last_message=chat_request.last_message)
+        logger.info(f"download image data: {len(image_data)}")
         conversation = ""
         for msg in history:
             local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
@@ -56,6 +58,7 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
             model = "gpt-4o-transcribe",
             file=audio_file
         )
+        logger.info(f"Transcription of the audio: {transcription.text}")
         # ADD PROMPT FOR TRUSTME rules
         conversation = ""
         for msg in history:
@@ -84,6 +87,7 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
         conversation += f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nBot:"
         
         message = HumanMessage(content=conversation)
+    
     
     try:
         system_message = AIMessage(
