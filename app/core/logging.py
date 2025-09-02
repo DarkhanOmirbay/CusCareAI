@@ -18,5 +18,5 @@ DATEFMT="%F %A %T"
 basicConfig(handlers=[file_handler,console_out],
                     format=FORMAT,
                     datefmt=DATEFMT,
-                    level=settings.LOG_LEVEL,
+                    level=settings.LOG_LEVEL.upper(),
                     )
