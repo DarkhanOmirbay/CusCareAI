@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     USER_EMAIL: str = ""
     OMNIDESK_API_KEY: str = ""
     DB_URL: str
-    DB_URL_ALEMBIC: str
     DB_ECHO: bool = False  
     # 
     POSTGRES_USER:str 
