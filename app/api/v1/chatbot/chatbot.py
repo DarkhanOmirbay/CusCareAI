@@ -45,7 +45,7 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
         ])
     elif messageType == "audio":
-        audio_data = omnidesk_api.download_audio(last_message=chat_request.last_message)
+        audio_data = await omnidesk_api.download_audio(last_message=chat_request.last_message)
         
         audio_file = io.BytesIO(audio_data)
         audio_file.name = "audio.mp3"
