@@ -15,5 +15,4 @@ logs.log
 README.md
 Dockerfile
 docker-compose.yml
-migrations
 ssh

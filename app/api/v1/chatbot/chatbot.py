@@ -31,7 +31,7 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
         image_data = await omnidesk_api.download_image(last_message=chat_request.last_message)
         conversation = ""
         for msg in history:
-            conversation += f"User: {msg.message}\n"
+            conversation += f"User: {msg.message}\n Created_at: {msg.created_at}\n"
             if msg.response:
                 conversation += f"Bot: {msg.response}\n"
         conversation += f"User(message with image): {chat_request.last_message}\nBot:"
@@ -53,7 +53,7 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
         # ADD PROMPT FOR TRUSTME rules
         conversation = ""
         for msg in history:
-            conversation += f"User: {msg.message}\n"
+            conversation += f"User: {msg.message}\n Created_at: {msg.created_at}\n"
             if msg.response:
                 conversation += f"Bot: {msg.response}\n"
         conversation += f"User:{chat_request.last_message}\nUser's Audio transcription: {transcription.text}\nBot:"
@@ -66,7 +66,7 @@ async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper
     else:
         conversation = ""
         for msg in history:
-            conversation += f"User: {msg.message}\n"
+            conversation += f"User: {msg.message}\n Created_at: {msg.created_at}\n"
             if msg.response:
                 conversation += f"Bot: {msg.response}\n"
         conversation += f"User: {chat_request.last_message}\nBot:"
