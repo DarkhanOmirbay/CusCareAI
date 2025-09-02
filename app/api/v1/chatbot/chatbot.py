@@ -21,7 +21,7 @@ router = APIRouter()
 @router.post("/chat")
 async def chat(chat_request:ChatRequest,session:AsyncSession = Depends(db_helper.scoped_session_dependency)):
     # logger.info(f" chat view (chat_request): {chat_request}")
-    
+    logger.info(f"Incoming chat_request: {chat_request.model_dump()}")
     try:
         history = await crud.get_chat_history(session=session,chat_id=chat_request.chat_id)
     except Exception as e:
