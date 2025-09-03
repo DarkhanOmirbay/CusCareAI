@@ -33,7 +33,7 @@ services:
     depends_on:
       - database
     ports:
-      - 8282:8282
+      - 8282:8080
     networks:
       - app_network  
 volumes:
