@@ -27,6 +27,15 @@ services:
       - app_network
     env_file:
       - .env
+  adminer:
+    image: adminer
+    restart: always
+    depends_on:
+      - database
+    ports:
+      - 8282:8282
+    networks:
+      - app_network  
 volumes:
   postgres_data:
 
