@@ -10,8 +10,7 @@ class Settings(BaseSettings):
     USER_EMAIL: str = ""
     OMNIDESK_API_KEY: str = ""
     DB_URL: str
-    DB_ECHO: bool = False  
-    # 
+    DB_ECHO: bool = False 
     POSTGRES_USER:str 
     POSTGRES_PASSWORD:str
     POSTGRES_DB:str

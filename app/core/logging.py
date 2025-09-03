@@ -1,22 +1,30 @@
 import logging
-from logging import getLogger,StreamHandler,FileHandler,basicConfig
+from logging import StreamHandler, FileHandler
 from app.core.config import settings
 
+# Общие форматтеры
+formatter = logging.Formatter(
+    fmt="%(asctime)s %(name)s:%(levelname)s:%(message)s",
+    datefmt="%F %A %T"
+)
 
-logger = getLogger(__name__)
-console_out = StreamHandler()
-
+# Хендлер для файла
 file_handler = FileHandler(
     filename=settings.LOG_FILENAME,
     encoding="utf-8",
     mode="a",
 )
+file_handler.setFormatter(formatter)
 
-FORMAT = "%(asctime)s %(name)s:%(levelname)s:%(message)s"
-DATEFMT="%F %A %T"
+# Хендлер для консоли
+console_out = StreamHandler()
+console_out.setFormatter(formatter)
 
-basicConfig(handlers=[file_handler,console_out],
-                    format=FORMAT,
-                    datefmt=DATEFMT,
-                    level=settings.LOG_LEVEL.upper(),
-                    )
+# Root logger (главный)
+root_logger = logging.getLogger()
+root_logger.setLevel(settings.LOG_LEVEL.upper())
+root_logger.addHandler(file_handler)
+root_logger.addHandler(console_out)
+
+# Твой именованный логгер
+logger = logging.getLogger("chatbot")
