@@ -112,7 +112,7 @@ async def chat_process(chat_request:ChatRequest):
         if messageType == "audio":
             try:
                 saved = await crud.save_message(session=session,user_id=int(chat_request.user_id),
-                                    chat_id=chat_request.chat_id,last_message=transcription.text,response=response_invoke)
+                                    chat_id=chat_request.chat_id,last_message=f"ТРАНСКРИПТ АУДИО:\n{transcription.text}",response=response_invoke)
             except Exception as e:
                 # raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR SAVE MESSAGE {str(e)}")
                 logger.error(f"ERROR SAVE MESSAGE {str(e)}")
