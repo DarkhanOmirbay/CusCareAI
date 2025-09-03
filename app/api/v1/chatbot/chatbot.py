@@ -9,7 +9,7 @@ from app.api.v1.chatbot import crud
 from app.api.v1.chatbot.helper import get_message_type
 from langchain_core.messages import HumanMessage,AIMessage
 import io
-from app.api.v1.chatbot.labels import LABELS,SUCCESS_ID,SUPPORT_ID,SYSTEM_PROMPT
+from app.api.v1.chatbot.labels import LABELS,SUCCESS_ID,SUPPORT_ID,SYSTEM_PROMPT,SYSTEM_PROMPT_V2
 import json
 from datetime import datetime
 
@@ -39,15 +39,15 @@ async def chat_process(chat_request:ChatRequest):
         if messageType == "image":
             image_data = await omnidesk_api.download_image(last_message=chat_request.last_message)
             logger.info(f"download image data: {len(image_data)}")
-            conversation = ""
+            last_message_time = datetime.now()
+            local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
+            conversation = f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')})(message with image): {chat_request.last_message}\nBot:\n USE BELOW CONVERSATION HISTORY:\n"
             for msg in history:
                 local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
                 conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
                 if msg.response:
-                    last_message_time = datetime.now()
-                    local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
                     conversation += f"Bot: {msg.response}\n"
-            conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message})(message with image): {chat_request.last_message}\nBot:"
+
 
             message = HumanMessage(content=[
                 {"type": "text", "text": conversation},
@@ -65,15 +65,15 @@ async def chat_process(chat_request:ChatRequest):
             )
             logger.info(f"Transcription of the audio: {transcription.text}")
             # ADD PROMPT FOR TRUSTME rules
-            conversation = ""
+            last_message_time = datetime.now()
+            local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
+            conversation = f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nUser's Audio transcription: {transcription.text}\nBot:\n USE BELOW CONVERSATION HISTORY:\n"
             for msg in history:
                 local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
                 conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
                 if msg.response:
-                    last_message_time = datetime.now()
-                    local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
                     conversation += f"Bot: {msg.response}\n"
-            conversation += f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nUser's Audio transcription: {transcription.text}\nBot:"
+
             
             message = HumanMessage(content=[
                 {"type": "text", "text": conversation},
@@ -81,22 +81,23 @@ async def chat_process(chat_request:ChatRequest):
             
             
         else:
-            conversation = ""
+            last_message_time = datetime.now()
+            local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
+            conversation = f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nBot:\n\n USE BELOW CONVERSATION HISTORY:\n"
             for msg in history:
                 local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
                 conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
                 if msg.response:
                     conversation += f"Bot: {msg.response}\n"
-            last_message_time = datetime.now()
-            local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
-            conversation += f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nBot:"
+           
+            
             
             message = HumanMessage(content=conversation)
         
         
         try:
             system_message = AIMessage(
-                content=SYSTEM_PROMPT
+                content=SYSTEM_PROMPT_V2
             )
             result = await agent.ainvoke({"last_message": message,"system_message":system_message})
             response_invoke = result["response"]
