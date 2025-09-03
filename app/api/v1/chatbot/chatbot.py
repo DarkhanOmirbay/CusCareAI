@@ -41,7 +41,7 @@ async def chat_process(chat_request:ChatRequest):
             logger.info(f"download image data: {len(image_data)}")
             last_message_time = datetime.now()
             local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
-            conversation = f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')})(message with image): {chat_request.last_message}\nBot:\n USE BELOW CONVERSATION HISTORY:\n"
+            conversation = f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')})(message with image): {chat_request.last_message}\nBot:\n USE BELOW CONVERSATION HISTORY:\n"
             for msg in history:
                 local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
                 conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
