@@ -12,8 +12,8 @@ import io
 from app.api.v1.chatbot.labels import LABELS,SUCCESS_ID,SUPPORT_ID,SYSTEM_PROMPT,SYSTEM_PROMPT_V2
 import json
 from datetime import datetime
-
 from zoneinfo import ZoneInfo
+from app.models.redis_helper import redis_helper
 
 router = APIRouter()
 
@@ -22,205 +22,58 @@ router = APIRouter()
 async def chat(chat_request:ChatRequest,bg:BackgroundTasks):
     bg.add_task(chat_process,chat_request)
     return Response("accepted",status_code=status.HTTP_200_OK)
-    
-async def chat_process(chat_request:ChatRequest):
-    async with db_helper.session_factory() as session:
-        logger.info(f"Incoming chat_request: {chat_request.model_dump()}")
-    
-        try:
-            history = await crud.get_chat_history(session=session,chat_id=chat_request.chat_id)
-        except Exception as e:
-            # raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR GET CHAT HISTORY {str(e)}")
-            logger.error(f"ERROR GET CHAT HISTORY {str(e)}")    
-        
-        messageType = await get_message_type(last_message=chat_request.last_message)
-        logger.info(f"message type : {messageType}")
-        
-        if messageType == "image":
-            image_data = await omnidesk_api.download_image(last_message=chat_request.last_message)
-            logger.info(f"download image data: {len(image_data)}")
-            last_message_time = datetime.now()
-            local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
-            conversation = f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')})(message with image): {chat_request.last_message}\nBot:\n USE BELOW CONVERSATION HISTORY:\n"
-            for msg in history:
-                local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-                conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
-                if msg.response:
-                    conversation += f"Bot: {msg.response}\n"
 
-
-            message = HumanMessage(content=[
-                {"type": "text", "text": conversation},
+async def get_content_by_msg_type(msg_type:str,chat_request:ChatRequest):
+    if msg_type == "text":
+        return chat_request.last_message
+    
+    elif msg_type == "image":
+        image_data = await omnidesk_api.download_image(last_message=chat_request.last_message)
+        message = HumanMessage(content=[
+                {"type": "text", "text": "Опиши прикрепленную image"},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
-            ])
-        elif messageType == "audio":
-            audio_data = await omnidesk_api.download_audio(last_message=chat_request.last_message)
+            ]) # here you can add system prompt to llm like you are image description writer etc
+        system_message = AIMessage(
+                content="ТЫ ИИ АССИСТЕНТ КОТОРЫЙ ПРИНИМАЕТ ФОТОГРАФИЙ , КАРТИНКИ , СКРИНШОТЫ\n\n ТВОЯ ЗАДАЧА ДАТЬ ОПИСАНИЕ КАРТИНКИ по шаблону : на image показан ... итд"
+            )
+        result = await agent.ainvoke({"last_message": message,"system_message":system_message})
+        content = result["response"]
+        # return f"User's message with image url: {chat_request.last_message}\n\n image description: {content}"
+        return content
+        
+    elif msg_type == "audio":
+        audio_data = await omnidesk_api.download_audio(last_message=chat_request.last_message)
             
-            audio_file = io.BytesIO(audio_data)
-            audio_file.name = "audio.mp3"
+        audio_file = io.BytesIO(audio_data)
+        audio_file.name = "audio.mp3"
             
-            transcription = await client.audio.transcriptions.create(
+        transcription = await client.audio.transcriptions.create(
                 model = "gpt-4o-transcribe",
                 file=audio_file
             )
-            logger.info(f"Transcription of the audio: {transcription.text}")
-            # ADD PROMPT FOR TRUSTME rules
-            last_message_time = datetime.now()
-            local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
-            conversation = f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nUser's Audio transcription: {transcription.text}\nBot:\n USE BELOW CONVERSATION HISTORY:\n"
-            for msg in history:
-                local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-                conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
-                if msg.response:
-                    conversation += f"Bot: {msg.response}\n"
-
-            
-            message = HumanMessage(content=[
-                {"type": "text", "text": conversation},
-            ])
-            
-            
-        else:
-            last_message_time = datetime.now()
-            local_time_last_msg = last_message_time.astimezone(ZoneInfo("Asia/Almaty"))
-            conversation = f"User({local_time_last_msg.strftime('%Y-%m-%d %H:%M:%S %z')}): {chat_request.last_message}\nBot:\n\n USE BELOW CONVERSATION HISTORY:\n"
-            for msg in history:
-                local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-                conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
-                if msg.response:
-                    conversation += f"Bot: {msg.response}\n"
-           
-            
-            
-            message = HumanMessage(content=conversation)
+        logger.info(f"Transcription of the audio: {transcription.text}")
         
-        
-        try:
-            system_message = AIMessage(
-                content=SYSTEM_PROMPT_V2
-            )
-            result = await agent.ainvoke({"last_message": message,"system_message":system_message})
-            response_invoke = result["response"]
-            tokens_1 = result["tokens"]
-        except Exception as e:
-            # raise HTTPException(
-            #     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            #     detail=f"ERROR AINVOKE {str(e)}"
-            # )
-            logger.error(f"ERROR AINVOKE {str(e)}")
-        
-        if messageType == "audio":
-            try:
-                saved = await crud.save_message(session=session,user_id=int(chat_request.user_id),
-                                    chat_id=chat_request.chat_id,last_message=f"ТРАНСКРИПТ АУДИО:\n{transcription.text}",response=response_invoke)
-            except Exception as e:
-                # raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR SAVE MESSAGE {str(e)}")
-                logger.error(f"ERROR SAVE MESSAGE {str(e)}")
-        else:
-            try:
-                saved = await crud.save_message(session=session,user_id=int(chat_request.user_id),
-                                    chat_id=chat_request.chat_id,last_message=chat_request.last_message,response=response_invoke)
-            except Exception as e:
-                # raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR SAVE MESSAGE {str(e)}")
-                logger.error(f"ERROR SAVE MESSAGE {str(e)}")
-            
-        try:
-            code = await omnidesk_api.send_message(content=response_invoke,chat_id=chat_request.chat_id)
-        except Exception as e:
-            # raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail=f"ERROR SEND MESSAGE {str(e)}")
-            logger.error(f"ERROR SEND MESSAGE {str(e)}")    
-            
-        last_ten_msg = await crud.get_chat_history(session=session,chat_id=chat_request.chat_id)
-        chat = await crud.get_chat_by_id(session=session,chat_id=chat_request.chat_id)
-
+        # return f"User's message with audio url: {chat_request.last_message}\n\n Audio's transcription: {transcription.text}"
+        return transcription.text                    
     
-        if len(last_ten_msg) ==10:
-            if not chat.labels_and_group:
-                prompt = f"""
-                Ты — классификатор чата.
-
-                Твоя задача:
-                1. Проанализировать последние 10 сообщений чата.
-                2. Определить список релевантных меток (labels).
-                3. Определить группу (group) по следующим правилам:
-                - Если клиент новый → вернуть "Success_ID".
-                - Если клиент взаимодействует меньше 2 месяцев → вернуть "Success_ID".
-                - Если клиент не новый и взаимодействует больше 2 месяцев → вернуть "Support_ID".
-
-                Важно:
-                - Ответь строго в формате **валидного JSON**.
-                - Не добавляй никаких пояснений или текста вне JSON.
-                - Используй только указанные ID меток и групп.
-
-                Сообщения чата:
-                {last_ten_msg}
-
-                Список доступных меток:
-                {LABELS}
-
-                Список доступных групп:
-                Success_ID = {SUCCESS_ID}
-                Support_ID = {SUPPORT_ID}
-
-                Формат ответа (пример):
-                {{
-                    "labels": [id_label_1, id_label_2],
-                    "group": "96756"
-                }}
-                """
-
-                response= await client.chat.completions.create(
-                    model="gpt-4o",
-                    response_format={
-                        "type":"json_object"
-                    },
-                    messages=[
-                        {"role": "system", "content": "Ты помощник-классификатор. Отвечай строго в JSON формате."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    temperature=0
-                )
-                result_labels_and_group = json.loads(response.choices[0].message.content)
-                tokens_2 = response.usage.total_tokens
-                logger.debug(F"labels and group: {result}")
-                logger.debug(f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}")
-                print(f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}")
-                
-                try:
-                    request_set_label = await omnidesk_api.set_labels_and_group(
-                        chat_id=chat_request.chat_id,
-                        labels=result_labels_and_group['labels'],
-                        group=result_labels_and_group['group'])
-                except Exception as e:
-                    # raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    #             detail=f"ERROR SETTING LABELS AND GROUP {str(e)}")
-                    logger.error(f"ERROR SETTING LABELS AND GROUP {str(e)}")
-                
-                
-                try:
-                    set_true = await crud.set_labels_group(session=session,
-                        chat_id = chat_request.chat_id)
-                except Exception as e:
-                    # raise HTTPException(status_code=
-                    #                     status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    #                     detail = f"ERROR SET LABELS AND GROUP {str(e)}")
-                    logger.error(f"ERROR SET LABELS AND GROUP {str(e)}")
-
-        
-        logger.debug(
-            {
-            "response":response_invoke,
-            "prompt sended":system_message,
-            # "tokens_used":tokens_1+tokens_2,
-            "conversation":conversation,
-            "saved":saved,
-            "code":code,
-            # "labels_and_group":result_labels_and_group,
-            # "request_set_label_code":request_set_label,
-            # "set_true":set_true
-            }
-        )
-        
-        return {"result":"finished"}   
-        
+async def chat_process(chat_request:ChatRequest):
+    messageType = await get_message_type(last_message=chat_request.last_message)
+    
+    content = await get_content_by_msg_type(msg_type=messageType,chat_request=chat_request)
+    
+    result = await redis_helper.add_message_to_buffer(chat_request=chat_request,content=content)
+    
+    logger.debug(f"chat process result : {result}")
+    
+    # get concatenated msgs send to llm
+    
+    # send user response + get chat history last 10 msgs
+    
+    # save msgs + response
+    
+    # set labels and groups
+    
+    
+    
+    
     
