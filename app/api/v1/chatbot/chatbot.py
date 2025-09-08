@@ -1,5 +1,5 @@
 from fastapi import APIRouter,HTTPException,status,Depends,BackgroundTasks,Response
-from app.schemas.chat import ChatRequest
+from app.schemas.chat import ChatRequest,WebhookRequest
 from app.core.logging import logger
 from app.core.langgraph.graph import agent,client
 from app.core.omnidesk.omnidesk_api import omnidesk_api
@@ -22,6 +22,13 @@ router = APIRouter()
 async def chat(chat_request:ChatRequest,bg:BackgroundTasks):
     bg.add_task(chat_process,chat_request)
     return Response("accepted",status_code=status.HTTP_200_OK)
+
+
+@router.post("/webhook")
+async def recieve_webhook(webhook_request:WebhookRequest): 
+    logger.debug(f"JSON STRUCTURE : {webhook_request.model_dump()}")
+    return Response("accepted",status_code=status.HTTP_200_OK)
+
 
 async def get_content_by_msg_type(msg_type:str,chat_request:ChatRequest):
     if msg_type == "text":
