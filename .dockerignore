@@ -16,3 +16,5 @@ README.md
 Dockerfile
 docker-compose.yml
 ssh
+app/api/v1/chatbot/chatbot copy.py
+app/api/v1/chatbot/test.py

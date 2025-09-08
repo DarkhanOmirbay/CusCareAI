@@ -14,3 +14,5 @@ audio_webhook.json
 photo_webhook.json
 logs.log
 ssh
+app/api/v1/chatbot/chatbot copy.py
+app/api/v1/chatbot/test.py
