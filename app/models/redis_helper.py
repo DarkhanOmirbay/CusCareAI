@@ -13,6 +13,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from app.api.v1.chatbot.labels import SYSTEM_PROMPT_V2,LABELS,SUCCESS_ID,SUPPORT_ID
 from app.core.langgraph.graph import agent,client
 from app.core.omnidesk.omnidesk_api import omnidesk_api
+from app.models.qdrant_helper import qdrant_helper
 
 class RedisHelper:
     """Redis Helper class """
@@ -172,12 +173,10 @@ class RedisHelper:
         chat_id=messages[0]["chat_id"]
         user_id=messages[0]["user_id"]
         
-        concatenated_messages = ""
-        
+        concatenated_messages = " ".join([msg['message'] for msg in messages])
         try:
-            for msg in messages:
-                concatenated_messages=concatenated_messages + f"{msg['message']}."
-                
+            retrieved_context = await qdrant_helper.retrieve_context(concatenated_messages)
+
             async with db_helper.session_factory() as session:
                 try:
                     history = await crud.get_chat_history(session=session, chat_id=chat_id)
@@ -185,16 +184,29 @@ class RedisHelper:
                     logger.error(f"Error getting chat history: {str(e)}")
                     history = []    
                     
-            current_time = datetime.now().astimezone(ZoneInfo("Asia/Almaty"))
-            conversation = f"User({current_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {concatenated_messages}\nBot:\n\n USE BELOW CONVERSATION HISTORY:\n"
-                
-            for msg in history:
+            history_lines = []
+            for msg in history[-10:]:
                 local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-                conversation += f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}\n"
+                history_lines.append(f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}")
                 if msg.response:
-                    conversation += f"Bot: {msg.response}\n"        
-                    
-            llm_message = HumanMessage(content=conversation)
+                    history_lines.append(f"Bot: {msg.response}")
+
+            formatted_history = "\n".join(history_lines)       
+            
+            current_time = datetime.now().astimezone(ZoneInfo("Asia/Almaty"))        
+            prompt = f"""
+                --- Chat History (last 10 messages) ---
+                {formatted_history or "No previous history."}
+
+                --- Retrieved Context (top 5 results) ---
+                {retrieved_context or "No relevant context found."}
+
+                --- User Query (current message) ---
+                User({current_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {concatenated_messages}
+
+                Now generate the best possible helpful answer to the user question above.
+                """      
+            llm_message = HumanMessage(content=prompt)
             try:
                     system_message = AIMessage(content=SYSTEM_PROMPT_V2)
                     result = await agent.ainvoke({"last_message": llm_message, "system_message": system_message})
@@ -213,10 +225,10 @@ class RedisHelper:
                 logger.error(f"ERROR SAVE MESSAGE {str(e)}")
             
             
-            try:
-                code = await omnidesk_api.send_message(content=response_invoke,chat_id=chat_id)
-            except Exception as e:
-                logger.error(f"ERROR SEND MESSAGE {str(e)}")
+            # try:
+            #     code = await omnidesk_api.send_message(content=response_invoke,chat_id=chat_id)
+            # except Exception as e:
+            #     logger.error(f"ERROR SEND MESSAGE {str(e)}")
             
             
             last_ten_msg = await crud.get_chat_history(session=session,chat_id=chat_id)
@@ -274,13 +286,13 @@ class RedisHelper:
                     logger.debug(f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}")
                     print(f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}")
 
-                    try:
-                        request_set_label = await omnidesk_api.set_labels_and_group(
-                        chat_id=chat_id,
-                        labels=result_labels_and_group['labels'],
-                        group=result_labels_and_group['group'])
-                    except Exception as e:
-                        logger.error(f"ERROR SETTING LABELS AND GROUP {str(e)}")
+                    # try:
+                    #     request_set_label = await omnidesk_api.set_labels_and_group(
+                    #     chat_id=chat_id,
+                    #     labels=result_labels_and_group['labels'],
+                    #     group=result_labels_and_group['group'])
+                    # except Exception as e:
+                    #     logger.error(f"ERROR SETTING LABELS AND GROUP {str(e)}")
                 
                     try:
                         set_true = await crud.set_labels_group(session=session,
@@ -292,9 +304,9 @@ class RedisHelper:
                 "response":response_invoke,
                 "prompt sended":system_message,
                 # "tokens_used":tokens_1+tokens_2,
-                "conversation":conversation,
+                "conversation":prompt,
                 "saved":saved,
-                "code":code,
+                # "code":code,
                 # "labels_and_group":result_labels_and_group,
                 # "request_set_label_code":request_set_label,
                 # "set_true":set_true
