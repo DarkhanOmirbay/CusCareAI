@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     REDIS_USER_PASSWORD:str
     REDIS_URL:str
     BUFFER_TIMEOUT:int
+    
+    # Qdrant
+    QDRANT_URL:str
+    QDRANT_COLLECTION_NAME:str
+    EMBEDDING_URL:str
+    EMBEDDING_TOKEN:str
 
     class Config:
         env_file = ".env"
