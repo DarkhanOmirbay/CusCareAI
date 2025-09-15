@@ -17,4 +17,9 @@ Dockerfile
 docker-compose.yml
 ssh
 app/api/v1/chatbot/chatbot copy.py
-app/api/v1/chatbot/test.py
+app/api/v1/chatbot/test_redis.py
+app/api/v1/chatbot/case_ids.json
+app/api/v1/chatbot/get_list_id.py
+app/api/v1/chatbot/get_case_content.py
+app/api/v1/chatbot/get_list_labels.py
+app/api/v1/chatbot/dataset
