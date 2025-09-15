@@ -1,5 +1,5 @@
-SUCCESS_ID ="96812"
-SUPPORT_ID ="96813"
+SUCCESS_ID ="96994"
+SUPPORT_ID ="96995"
 
 LABELS = """
 157365 | [Баг] 04.06.24 Новая архитектура

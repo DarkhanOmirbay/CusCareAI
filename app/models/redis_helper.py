@@ -225,10 +225,10 @@ class RedisHelper:
                 logger.error(f"ERROR SAVE MESSAGE {str(e)}")
             
             
-            # try:
-            #     code = await omnidesk_api.send_message(content=response_invoke,chat_id=chat_id)
-            # except Exception as e:
-            #     logger.error(f"ERROR SEND MESSAGE {str(e)}")
+            try:
+                code = await omnidesk_api.send_message(content=response_invoke,chat_id=chat_id)
+            except Exception as e:
+                logger.error(f"ERROR SEND MESSAGE {str(e)}")
             
             
             last_ten_msg = await crud.get_chat_history(session=session,chat_id=chat_id)
@@ -286,13 +286,13 @@ class RedisHelper:
                     logger.debug(f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}")
                     print(f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}")
 
-                    # try:
-                    #     request_set_label = await omnidesk_api.set_labels_and_group(
-                    #     chat_id=chat_id,
-                    #     labels=result_labels_and_group['labels'],
-                    #     group=result_labels_and_group['group'])
-                    # except Exception as e:
-                    #     logger.error(f"ERROR SETTING LABELS AND GROUP {str(e)}")
+                    try:
+                        request_set_label = await omnidesk_api.set_labels_and_group(
+                        chat_id=chat_id,
+                        labels=result_labels_and_group['labels'],
+                        group=result_labels_and_group['group'])
+                    except Exception as e:
+                        logger.error(f"ERROR SETTING LABELS AND GROUP {str(e)}")
                 
                     try:
                         set_true = await crud.set_labels_group(session=session,
@@ -306,7 +306,7 @@ class RedisHelper:
                 # "tokens_used":tokens_1+tokens_2,
                 "conversation":prompt,
                 "saved":saved,
-                # "code":code,
+                "code":code,
                 # "labels_and_group":result_labels_and_group,
                 # "request_set_label_code":request_set_label,
                 # "set_true":set_true
