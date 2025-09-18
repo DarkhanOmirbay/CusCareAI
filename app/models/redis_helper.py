@@ -306,7 +306,7 @@ class RedisHelper:
                 # "tokens_used":tokens_1+tokens_2,
                 "conversation":prompt,
                 "saved":saved,
-                "code":code,
+                # "code":code,
                 # "labels_and_group":result_labels_and_group,
                 # "request_set_label_code":request_set_label,
                 # "set_true":set_true
@@ -330,17 +330,10 @@ class RedisHelper:
             message_data = {
                 "chat_id":chat_request.chat_id,
                 "user_id":chat_request.user_id,
-                # "message":chat_request.last_message
                 "message":content
             }
             
             pipe = self.redis_client.pipeline()
-            
-            # if audio - > add audio transcription
-            # if image - > add image description
-            # if text -> add just text of message
-            # pipe.lpush(buffer_key,chat_request.last_message)
-            # adding key value to redis (buffer)
             pipe.lpush(buffer_key,json.dumps(message_data)) 
             
             # set timer
@@ -348,7 +341,7 @@ class RedisHelper:
             pipe.set(timer_key,expire_at.isoformat()) # now for example 10:47:00 + 00:01:30 = 10h:48m:30s   1:30m
             
             # Redis TTL - Time to live
-            pipe.expire(buffer_key,self.buffer_timeout+60) # !! think about it // 00:01:30 + 00:01:00 = 00h:02m:30s  2:30m
+            pipe.expire(buffer_key,self.buffer_timeout+30) # !! think about it // 00:01:30 + 00:01:00 = 00h:02m:30s  2:30m
             pipe.expire(timer_key,self.buffer_timeout+30) # !! // 00:01:30 + 00:00:30 = 00h:02m:00s 2:00m
             
             results = await pipe.execute()
@@ -358,7 +351,7 @@ class RedisHelper:
                         f"Buffer size: {buffer_size}, expires at: {expire_at.strftime('%H:%M:%S')}")
         
         except Exception as e:
-            logger.error(f"Error adding message to Redis buffer: {str(e)}")
+            logger.error(f"Error adding message to Redis buffer: {str(e)}",exc_info=True)
             # Could fallback to immediate processing if Redis fails
             raise
         
