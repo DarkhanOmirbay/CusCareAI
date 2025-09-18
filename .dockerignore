@@ -11,7 +11,6 @@ wheels/
 omnidesk_webhook.json
 audio_webhook.json
 photo_webhook.json
-logs.log
 README.md
 Dockerfile
 docker-compose.yml
