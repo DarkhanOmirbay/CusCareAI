@@ -1,28 +1,48 @@
 from qdrant_client import AsyncQdrantClient
+from openai import AsyncOpenAI
 from app.core.config import settings
 import httpx
+from app.core.logging import logger
 
 class QdrantHelper:
     def __init__(self):
         self.qdrant_client = AsyncQdrantClient(url=settings.QDRANT_URL)
         
     async def embedder(self,query_str:str):
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url=settings.EMBEDDING_URL,
-                headers={
-                    "Content-Type":"application/json",
-                    "Authorization":f"Bearer {settings.EMBEDDING_TOKEN}"
-                },
-                json={
-                    "model":"text-1024",
-                    "input":query_str
-                }
-            )
-        response_dict = response.json()
-        data = response_dict['data']
-        embedding = data[0]['embedding']
-        return embedding
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url=settings.EMBEDDING_URL,
+                    headers={
+                        "Content-Type":"application/json",
+                        "Authorization":f"Bearer {settings.EMBEDDING_TOKEN}"
+                    },
+                    json={
+                        "model":"text-1024",
+                        "input":query_str
+                    }
+                )
+                if response.status_code != 200:
+                    raise ValueError("Jina3 embedding API returned {response.status_code}")
+            response_dict = response.json()
+            data = response_dict['data']
+            embedding = data[0]['embedding']
+            return embedding
+        except Exception as e:
+            logger.error(f"Jina3 embedding failed, using OpenAI: {e}")
+            try:
+                client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                response = await client.embeddings.create(
+                    input=query_str,
+                    model="text-embedding-3-small",
+                    dimensions=1024
+                )
+                embedding = response.data[0].embedding
+                return embedding
+            except Exception as openai_error:
+                logger.error(f"OpenAI embedding failed too: {openai_error}")
+                raise RuntimeError("Both embedding providers failed")
+            
             
     async def retrieve_context(self,query_str:str) -> str:
         query = await self.embedder(query_str=query_str)
@@ -40,9 +60,3 @@ class QdrantHelper:
         
 
 qdrant_helper = QdrantHelper()
-
-# import asyncio
-# async def test():
-#     result = await qdrant_helper.retrieve_context(query_str="У меня смс код не приходит")
-#     print(result)
-# asyncio.run(test())
