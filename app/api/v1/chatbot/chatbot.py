@@ -20,13 +20,14 @@ router = APIRouter()
  
 @router.post("/chat")
 async def chat(chat_request:ChatRequest,bg:BackgroundTasks):
+    logger.info(f"chat_request {chat_request.chat_id} added to Background task")
     bg.add_task(chat_process,chat_request)
     return Response("accepted",status_code=status.HTTP_200_OK)
 
 
 @router.post("/webhook")
 async def recieve_webhook(webhook_request:WebhookRequest): 
-    logger.debug(f"JSON STRUCTURE : {webhook_request.model_dump()}")
+    logger.info(f"JSON STRUCTURE : {webhook_request.model_dump()}")
     return Response("accepted",status_code=status.HTTP_200_OK)
 
 
@@ -39,13 +40,12 @@ async def get_content_by_msg_type(msg_type:str,chat_request:ChatRequest):
         message = HumanMessage(content=[
                 {"type": "text", "text": "Опиши прикрепленную image"},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
-            ]) # here you can add system prompt to llm like you are image description writer etc
+            ]) 
         system_message = AIMessage(
                 content="ТЫ ИИ АССИСТЕНТ КОТОРЫЙ ПРИНИМАЕТ ФОТОГРАФИЙ , КАРТИНКИ , СКРИНШОТЫ\n\n ТВОЯ ЗАДАЧА ДАТЬ ОПИСАНИЕ КАРТИНКИ по шаблону : на image показан ... итд"
             )
         result = await agent.ainvoke({"last_message": message,"system_message":system_message})
         content = result["response"]
-        # return f"User's message with image url: {chat_request.last_message}\n\n image description: {content}"
         return content
         
     elif msg_type == "audio":
@@ -58,27 +58,25 @@ async def get_content_by_msg_type(msg_type:str,chat_request:ChatRequest):
                 model = "gpt-4o-transcribe",
                 file=audio_file
             )
-        logger.info(f"Transcription of the audio: {transcription.text}")
         
-        # return f"User's message with audio url: {chat_request.last_message}\n\n Audio's transcription: {transcription.text}"
         return transcription.text                    
     
 async def chat_process(chat_request:ChatRequest):
+    logger.info(f"chat_process started for chat_request {chat_request.chat_id} ")
+    
     messageType = await get_message_type(last_message=chat_request.last_message)
+    
+    logger.info(f"Message type is {messageType} for chat_request {chat_request.chat_id}")
     
     content = await get_content_by_msg_type(msg_type=messageType,chat_request=chat_request)
     
-    result = await redis_helper.add_message_to_buffer(chat_request=chat_request,content=content)
+    logger.info(f"Content is {content} for chat_request {chat_request.chat_id}")
+
+    await redis_helper.add_message_to_buffer(chat_request=chat_request,content=content)
     
-    logger.debug(f"chat process result : {result}")
     
-    # get concatenated msgs send to llm
     
-    # send user response + get chat history last 10 msgs
-    
-    # save msgs + response
-    
-    # set labels and groups
+
     
     
     
