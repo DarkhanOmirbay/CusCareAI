@@ -10,7 +10,7 @@ from app.models.db_helper import db_helper
 from app.api.v1.chatbot import crud
 from zoneinfo import ZoneInfo
 from langchain_core.messages import HumanMessage, AIMessage
-from app.api.v1.chatbot.labels import SYSTEM_PROMPT_V2,SYSTEM_PROMPT_V3,LABELS,SUCCESS_ID,SUPPORT_ID
+from app.api.v1.chatbot.labels import SYSTEM_PROMPT_V2,LABELS,SUCCESS_ID,SUPPORT_ID
 from app.core.langgraph.graph import agent,client
 from app.core.omnidesk.omnidesk_api import omnidesk_api
 from app.models.qdrant_helper import qdrant_helper
@@ -207,7 +207,7 @@ class RedisHelper:
                 """      
             llm_message = HumanMessage(content=prompt)
             try:
-                    system_message = AIMessage(content=SYSTEM_PROMPT_V3)
+                    system_message = AIMessage(content=SYSTEM_PROMPT_V2)
                     result = await agent.ainvoke({"last_message": llm_message, "system_message": system_message})
                     response_invoke = result["response"]
                     tokens_used = result["tokens"]
