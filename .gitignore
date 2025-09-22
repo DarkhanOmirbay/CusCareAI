@@ -25,3 +25,4 @@ app/api/v1/chatbot/dataset
 app/models/loader.py
 app/models/loader.ipynb
 app/models/file_paths
+app/models/qdrant.md

@@ -10,7 +10,7 @@ from app.models.db_helper import db_helper
 from app.api.v1.chatbot import crud
 from zoneinfo import ZoneInfo
 from langchain_core.messages import HumanMessage, AIMessage
-from app.api.v1.chatbot.labels import SYSTEM_PROMPT_V2,LABELS,SUCCESS_ID,SUPPORT_ID
+from app.api.v1.chatbot.labels import SYSTEM_PROMPT_V2,SYSTEM_PROMPT_V3,LABELS,SUCCESS_ID,SUPPORT_ID
 from app.core.langgraph.graph import agent,client
 from app.core.omnidesk.omnidesk_api import omnidesk_api
 from app.models.qdrant_helper import qdrant_helper
@@ -196,19 +196,18 @@ class RedisHelper:
             current_time = datetime.now().astimezone(ZoneInfo("Asia/Almaty"))        
             prompt = f"""
                 --- Chat History (last 10 messages) ---
-                {formatted_history or "No previous history."}
+                {formatted_history}
 
                 --- Retrieved Context (top 5 results) ---
-                {retrieved_context or "No relevant context found."}
+                {retrieved_context}
 
                 --- User Query (current message) ---
                 User({current_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {concatenated_messages}
 
-                Now generate the best possible helpful answer to the user question above.
                 """      
             llm_message = HumanMessage(content=prompt)
             try:
-                    system_message = AIMessage(content=SYSTEM_PROMPT_V2)
+                    system_message = AIMessage(content=SYSTEM_PROMPT_V3)
                     result = await agent.ainvoke({"last_message": llm_message, "system_message": system_message})
                     response_invoke = result["response"]
                     tokens_used = result["tokens"]
