@@ -26,3 +26,6 @@ app/models/loader.py
 app/models/loader.ipynb
 app/models/file_paths
 app/models/qdrant.md
+prompt_en.md
+app/m.py
+app/m.md
