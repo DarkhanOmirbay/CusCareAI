@@ -236,14 +236,22 @@ class RedisHelper:
             if len(last_ten_msg) == 10:
                 if not chat.labels_and_group:
                     messages_for_label = ""
+                    labels: list[str] = []
+
                     for m in last_ten_msg:
-                        messages_for_label+=f"User message:{m.message}\n Bot response:{m.response}\n"
+                        messages_for_label += f"User message:{m.message}\n Bot response:{m.response}\n"
+                        retrieved_labels = await qdrant_helper.retrieve_labels(query_str=m.message)
+                        labels.extend(retrieved_labels)
+                        
+                    labels_str = ', '.join(labels)
+                    logger.debug(f"RETRIEVED LABELS {labels_str}")
+                    
                     prompt = f"""
                     Ты — классификатор чата.
 
                     Твоя задача:
                     1. Проанализировать последние 10 сообщений чата.
-                    2. Определить список релевантных меток (labels).
+                    2. Определить список релевантных меток (labels) анализируя Сообщения чата и Retrieved labels со списком доступных меток.
                     3. Определить группу (group) по следующим правилам:
                     - Если клиент новый → вернуть "Success_ID".
                     - Если клиент взаимодействует меньше 2 месяцев → вернуть "Success_ID".
@@ -256,6 +264,9 @@ class RedisHelper:
 
                     Сообщения чата:
                     {messages_for_label}
+                    
+                    Retrieved labels using knowledge base:
+                    {labels_str}
 
                     Список доступных меток:
                     {LABELS}
@@ -307,7 +318,7 @@ class RedisHelper:
                 "prompt sended":system_message,
                 # "tokens_used":tokens_1+tokens_2,
                 "conversation":prompt,
-                "saved":saved,
+                "saved":saved.chat_id,
                 # "code":code,
                 # "labels_and_group":result_labels_and_group,
                 # "request_set_label_code":request_set_label,
