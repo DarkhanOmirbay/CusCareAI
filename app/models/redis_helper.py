@@ -235,6 +235,9 @@ class RedisHelper:
             
             if len(last_ten_msg) == 10:
                 if not chat.labels_and_group:
+                    messages_for_label = ""
+                    for m in last_ten_msg:
+                        messages_for_label+=f"User message:{m.message}\n Bot response:{m.response}\n"
                     prompt = f"""
                     Ты — классификатор чата.
 
@@ -252,7 +255,7 @@ class RedisHelper:
                     - Используй только указанные ID меток и групп.
 
                     Сообщения чата:
-                    {last_ten_msg}
+                    {messages_for_label}
 
                     Список доступных меток:
                     {LABELS}
