@@ -56,7 +56,21 @@ class QdrantHelper:
             f"---\nCase_id: {point.id}\nMessages: {point.payload.get('content','')}\n\n" for point in search_resullt.points if point.payload is not None
         ])
         return relevant_context
+    async def retrieve_labels(self,query_str:str) ->list[str]:
+        labels:list[str] = []
+        query = await self.embedder(query_str=query_str)
         
+        search_result = await self.qdrant_client.query_points(
+            collection_name=settings.QDRANT_COLLECTION_NAME,
+            query=query,
+            with_payload=True,
+            limit=5
+        )
+        
+        for point in search_result.points:
+            labels.append(point.payload.get('label_title',''))
+    
+        return labels
         
 
 qdrant_helper = QdrantHelper()
