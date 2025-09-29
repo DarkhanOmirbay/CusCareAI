@@ -10,6 +10,8 @@ services:
       - database
     networks:
       - app_network
+    volumes:
+      - ./logs.log:/app/logs.log
 
   database:
     image: postgres:16
