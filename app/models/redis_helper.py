@@ -213,6 +213,33 @@ class RedisHelper:
             formatted_history = "\n".join(history_lines)
 
             current_time = datetime.now().astimezone(ZoneInfo("Asia/Almaty"))
+
+            # Detect recent greetings in history (within last hour)
+            greeting_words = [
+                "привет",
+                "здравствуйте",
+                "здравствуй",
+                "доброе утро",
+                "добрый день",
+                "добрый вечер",
+                "хай",
+                "hello",
+                "hi",
+            ]
+            recent_threshold = current_time - timedelta(hours=1)
+            found_recent_greeting = False
+            for msg in history[-10:]:
+                try:
+                    msg_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
+                except Exception:
+                    msg_time = current_time
+                if msg_time >= recent_threshold:
+                    text = (msg.message or "").lower()
+                    if any(g in text for g in greeting_words):
+                        found_recent_greeting = True
+                        break
+
+            # Build initial prompt for primary LLM
             prompt = f"""
                 --- Chat History (last 10 messages) ---
                 {formatted_history}
@@ -239,6 +266,39 @@ class RedisHelper:
             except Exception as e:
                 logger.error(f"LLM processing failed: {str(e)}")
                 return False
+            
+            # Second LLM call: decide to remove or add greeting based on recent history
+            try:
+                if found_recent_greeting:
+                    system_instr = (
+                        "Ты помощник, который анализирует историю чата и УДАЛЯЕТ приветственные фразы "
+                        "из ответа, если в истории есть недавнее (в пределах часа) приветствие. "
+                        "Удаляй только приветствия и связанные короткие фразы («Здравствуйте», «Привет», "
+                        "«Добрый день» и т.п.), не меняй основную полезную часть ответа. "
+                        "Верни только исправённый текст ответа без дополнительных комментариев."
+                    )
+                else:
+                    system_instr = (
+                        "Ты помощник, который анализирует историю чата и, если в ответе отсутствует приветствие, "
+                        "добавляет краткое уместное приветствие в начале ответа (например «Здравствуйте!» или «Привет!»). "
+                        "Если в ответе уже есть приветствие — не добавляй повторно. "
+                        "Не добавляй длинные вводные фразы — только короткое приветствие, затем сам ответ. "
+                        "Верни только итоговый текст ответа без дополнительных комментариев."
+                    )
+
+                cleaned_response = await client.chat.completions.create(
+                    model="gpt-4o",
+                    response_format={"type": "text"},
+                    messages=[
+                        {"role": "system", "content": system_instr},
+                        {"role": "user", "content": f"Проверь и, если нужно, исправь этот ответ: {response_invoke}"},
+                    ],
+                    temperature=0,
+                )
+                response_invoke = cleaned_response.choices[0].message.content
+                logger.debug(f"Cleaned response: {response_invoke}")
+            except Exception as e:
+                logger.error(f"Error cleaning response: {str(e)}")
 
             try:
                 saved = await crud.save_message(
@@ -290,7 +350,7 @@ class RedisHelper:
             except Exception as e:
                 logger.error(f"Error llm call for human_help : {str(e)}")
 
-            if need_human_help["response_required"]:
+            if need_human_help and need_human_help.get("response_required"):
                 try:
                     result = await omnidesk_api.call_human(
                         chat_id=chat_id, user_id=user_id, message="человек"
