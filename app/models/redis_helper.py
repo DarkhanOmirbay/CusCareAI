@@ -256,6 +256,7 @@ class RedisHelper:
                 code = await omnidesk_api.send_message(
                     content=response_invoke, chat_id=chat_id
                 )
+                logger.info(f"message sended {code}")
             except Exception as e:
                 logger.error(f"ERROR SEND MESSAGE {str(e)}")
 
