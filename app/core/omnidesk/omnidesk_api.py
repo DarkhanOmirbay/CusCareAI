@@ -53,7 +53,7 @@ class OmnideskAPI:
             )
         return result.status_code
 
-    async def call_human(self, chat_id: str, user_id: int, message: str = "человек"):
+    async def call_human(self, chat_id: str, user_id: int, message: str = "ВЫЗОВ МЕНЕДЖЕРА"):
         data = {"message": {"content": message, "user_id": user_id}}
         async with httpx.AsyncClient() as client:
             result = await client.post(

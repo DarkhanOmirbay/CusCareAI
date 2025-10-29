@@ -313,6 +313,7 @@ class RedisHelper:
                 )
             except Exception as e:
                 logger.error(f"ERROR SAVE MESSAGE {str(e)}")
+            
 
             try:
                 code = await omnidesk_api.send_message(
@@ -320,7 +321,9 @@ class RedisHelper:
                 )
                 logger.info(f"message sended {code}")
             except Exception as e:
+                import traceback
                 logger.error(f"ERROR SEND MESSAGE {str(e)}")
+                logger.error(traceback.format_exc())
 
             try:
                 prompt_human_help = f"""
@@ -361,7 +364,7 @@ class RedisHelper:
             if need_human_help and need_human_help.get("response_required"):
                 try:
                     result = await omnidesk_api.call_human(
-                        chat_id=chat_id, user_id=user_id, message="человек"
+                        chat_id=chat_id, user_id=user_id, message="ВЫЗОВ МЕНЕДЖЕРА"
                     )
                     logger.debug(f"Result from call_human() : {result}")
                 except Exception as e:
