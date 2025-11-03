@@ -9,11 +9,18 @@ class Settings(BaseSettings):
     STAFF_ID: int | None = None
     USER_EMAIL: str = ""
     OMNIDESK_API_KEY: str = ""
+    
     DB_URL: str
     DB_ECHO: bool = False 
     POSTGRES_USER:str 
     POSTGRES_PASSWORD:str
     POSTGRES_DB:str
+    # ORM
+    POOL_SIZE:int
+    POOL_TIMEOUT:int
+    MAX_OVERFLOW:int
+    POOL_RECYCLE:int
+
     # redis
     REDIS_PASSWORD:str
     REDIS_USER:str

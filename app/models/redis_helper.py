@@ -194,292 +194,289 @@ class RedisHelper:
 
             async with db_helper.session_factory() as session:
                 try:
-                    history = await crud.get_chat_history(
+                    history = await crud.get_chat_history( ## first query to db
                         session=session, chat_id=chat_id
                     )
                 except Exception as e:
                     logger.error(f"Error getting chat history: {str(e)}")
                     history = []
 
-            history_lines = []
-            for msg in history[-10:]:
-                local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-                history_lines.append(
-                    f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}"
-                )
-                if msg.response:
-                    history_lines.append(f"Bot: {msg.response}")
-
-            formatted_history = "\n".join(history_lines)
-
-            current_time = datetime.now().astimezone(ZoneInfo("Asia/Almaty"))
-
-            # Detect recent greetings in history (within last hour)
-            greeting_words = [
-                "привет",
-                "здравствуйте",
-                "здравствуй",
-                "доброе утро",
-                "добрый день",
-                "добрый вечер",
-                "хай",
-                "hello",
-                "hi",
-            ]
-            recent_threshold = current_time - timedelta(hours=1)
-            found_recent_greeting = False
-            for msg in history[-10:]:
-                try:
-                    msg_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
-                except Exception:
-                    msg_time = current_time
-                if msg_time >= recent_threshold:
-                    text = (msg.message or "").lower()
-                    response_text = (msg.response or "").lower()
-                    # Check greetings in both user message and AI response
-                    if any(g in text for g in greeting_words) or any(
-                        g in response_text for g in greeting_words
-                    ):
-                        found_recent_greeting = True
-                        break
-
-            # Build initial prompt for primary LLM
-            prompt = f"""
-                --- Chat History (last 10 messages) ---
-                {formatted_history}
-
-                --- Retrieved Context (top 5 results) ---
-                {retrieved_context}
-
-                --- User Query (current message) ---
-                User({current_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {concatenated_messages}
-
-                """
-            llm_message = HumanMessage(content=prompt)
-            try:
-                system_message = AIMessage(content=SYSTEM_PROMPT_V3)
-                result = await agent.ainvoke(
-                    {"last_message": llm_message, "system_message": system_message}
-                )
-                response_invoke = result["response"]
-                tokens_used = result["tokens"]
-
-                logger.info(
-                    f"LLM responded for chat {chat_id}, tokens used: {tokens_used}"
-                )
-            except Exception as e:
-                logger.error(f"LLM processing failed: {str(e)}")
-                return False
-
-            try:
-                if found_recent_greeting:
-                    system_instr = (
-                        "Ты текстовый фильтр. Удали приветствия в начале текста "
-                        "(например 'Здравствуйте', 'Добрый день', 'Привет' и т.п.). "
-                        "Не добавляй ничего взамен. Не объясняй свои действия. "
-                        "Верни только очищенный текст."
-                        "Не используйте звёздочки в любом виде: никаких **жирных**, *курсива* и обрамления текста звёздочками. Для списков применяйте нумерацию «1., 2.» или тире «-» без звёздочек."
+                history_lines = []
+                for msg in history[-10:]:
+                    local_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
+                    history_lines.append(
+                        f"User({local_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {msg.message}"
                     )
-                else:
-                    system_instr = (
-                        "Ты текстовый фильтр. Если в тексте нет приветствия, добавь одно короткое уместное "
-                        "приветствие в начале (например 'Здравствуйте!'), затем оставь текст без изменений. "
-                        "Не объясняй свои действия. Верни только финальный текст."
-                        "Не используйте звёздочки в любом виде: никаких **жирных**, *курсива* и обрамления текста звёздочками. Для списков применяйте нумерацию «1., 2.» или тире «-» без звёздочек."
-                    )
+                    if msg.response:
+                        history_lines.append(f"Bot: {msg.response}")
 
-                cleaned_response = await client.chat.completions.create(
-                    model="gpt-4o",
-                    response_format={"type": "text"},
-                    messages=[
-                        {"role": "system", "content": system_instr},
-                        {"role": "user", "content": response_invoke},
-                    ],
-                    temperature=0,
-                )
-                response_invoke = cleaned_response.choices[0].message.content
-                logger.debug(f"Cleaned response: {response_invoke}")
-            except Exception as e:
-                logger.error(f"Error cleaning response: {str(e)}")
+                formatted_history = "\n".join(history_lines)
 
-            try:
-                saved = await crud.save_message(
-                    session=session,
-                    user_id=int(user_id),
-                    chat_id=chat_id,
-                    last_message=concatenated_messages,
-                    response=response_invoke,
-                    retrieved=point_ids,
-                )
-            except Exception as e:
-                logger.error(f"ERROR SAVE MESSAGE {str(e)}")
-            
+                current_time = datetime.now().astimezone(ZoneInfo("Asia/Almaty"))
 
-            try:
-                code = await omnidesk_api.send_message(
-                    content=response_invoke, chat_id=chat_id
-                )
-                logger.info(f"message sended {code}")
-            except Exception as e:
-                import traceback
-                logger.error(f"ERROR SEND MESSAGE {str(e)}")
-                logger.error(traceback.format_exc())
+                greeting_words = [
+                    "привет",
+                    "здравствуйте",
+                    "здравствуй",
+                    "доброе утро",
+                    "добрый день",
+                    "добрый вечер",
+                    "хай",
+                    "hello",
+                    "hi","сәлем","сәлеметсізбе","салеметсизбе","кайырлы кун","қайырлы күн"
+                ]
+                recent_threshold = current_time - timedelta(hours=1)
+                found_recent_greeting = False
+                for msg in history[-10:]:
+                    try:
+                        msg_time = msg.created_at.astimezone(ZoneInfo("Asia/Almaty"))
+                    except Exception:
+                        msg_time = current_time
+                    if msg_time >= recent_threshold:
+                        text = (msg.message or "").lower()
+                        response_text = (msg.response or "").lower()
+                        if any(g in text for g in greeting_words) or any(
+                            g in response_text for g in greeting_words
+                        ):
+                            found_recent_greeting = True
+                            break
 
-            try:
-                prompt_human_help = f"""
-                        --- История чата (последние 10 сообщений) ---
-                        {formatted_history}
+                prompt = f"""
+                    --- Chat History (last 10 messages) ---
+                    {formatted_history}
 
-                        --- Запрос клиента (текущее сообщение) ---
-                        Пользователь({current_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {concatenated_messages}
+                    --- Retrieved Context (top 5 results) ---
+                    {retrieved_context}
 
-                        Ответ на текущее сообщение от ИИ, используя RAG: {response_invoke}
+                    --- User Query (current message) ---
+                    User({current_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {concatenated_messages}
 
-                        --- Классификация запроса: ---
-                        Проанализируй запрос. Верни `True`, если нужен реальный человек для ответа, и `False`, если ИИ может ответить самостоятельно, используя доступные данные или RAG.
-
-                        Важно:
-                        1. Если вопрос связан с тарифами, пакетами или стоимостью услуг — сразу возвращай `response_required: true`, даже если есть данные в RAG.
-                        2. Если запрос общий и ИИ может ответить сам — возвращай `response_required: false`.
-                        3. Ответ должен быть строго в формате JSON, например:
-
-                        Формат ответа (пример):
-                        {{
-                        "response_required": true
-                        }}
                     """
-                response_human_help = await client.chat.completions.create(
-                    model="gpt-4o",
-                    response_format={"type": "json_object"},
-                    messages=[{"role": "user", "content": prompt_human_help}],
-                    temperature=0,
-                )
-                need_human_help = json.loads(
-                    response_human_help.choices[0].message.content
-                )
-                logger.debug(f"response from llm human help : {need_human_help}")
-            except Exception as e:
-                logger.error(f"Error llm call for human_help : {str(e)}")
-
-            if need_human_help and need_human_help.get("response_required"):
+                llm_message = HumanMessage(content=prompt)
                 try:
-                    result = await omnidesk_api.call_human(
-                        chat_id=chat_id, user_id=user_id, message="ВЫЗОВ МЕНЕДЖЕРА"
+                    system_message = AIMessage(content=SYSTEM_PROMPT_V3)
+                    result = await agent.ainvoke(
+                        {"last_message": llm_message, "system_message": system_message}
                     )
-                    logger.debug(f"Result from call_human() : {result}")
+                    response_invoke = result["response"]
+                    tokens_used = result["tokens"]
+
+                    logger.info(
+                        f"LLM responded for chat {chat_id}, tokens used: {tokens_used}"
+                    )
                 except Exception as e:
-                    logger.error(f"Error call human : {str(e)}")
+                    logger.error(f"LLM processing failed: {str(e)}")
+                    return False
 
-            last_ten_msg = await crud.get_chat_history(session=session, chat_id=chat_id)
-            chat = await crud.get_chat_by_id(session=session, chat_id=chat_id)
-
-            if len(last_ten_msg) == 10:
-                if not chat.labels_and_group:
-                    messages_for_label = ""
-                    labels: list[str] = []
-
-                    for m in last_ten_msg:
-                        messages_for_label += (
-                            f"User message:{m.message}\n Bot response:{m.response}\n"
+                try:
+                    if found_recent_greeting:
+                        system_instr = (
+                            "Ты текстовый фильтр. Удали приветствия в начале текста "
+                            "(например 'Здравствуйте', 'Добрый день', 'Привет' и т.п.). "
+                            "Не добавляй ничего взамен. Не объясняй свои действия. "
+                            "Верни только очищенный текст."
+                            "Не используйте звёздочки в любом виде: никаких **жирных**, *курсива* и обрамления текста звёздочками. Для списков применяйте нумерацию «1., 2.» или тире «-» без звёздочек."
                         )
-                        retrieved_labels = await qdrant_helper.retrieve_labels(
-                            query_str=m.message
+                    else:
+                        system_instr = (
+                            "Ты текстовый фильтр. Если в тексте нет приветствия, добавь одно короткое уместное "
+                            "приветствие в начале (например 'Здравствуйте!'), затем оставь текст без изменений. "
+                            "Не объясняй свои действия. Верни только финальный текст."
+                            "Не используйте звёздочки в любом виде: никаких **жирных**, *курсива* и обрамления текста звёздочками. Для списков применяйте нумерацию «1., 2.» или тире «-» без звёздочек."
                         )
-                        labels.extend(retrieved_labels)
 
-                    labels_str = ", ".join(labels)
-                    logger.debug(f"RETRIEVED LABELS {labels_str}")
-
-                    prompt = f"""
-                    Ты — классификатор чата.
-
-                    Твоя задача:
-                    1. Проанализировать последние 10 сообщений чата.
-                    2. Определить список релевантных меток (labels) анализируя Сообщения чата и Retrieved labels со списком доступных меток.
-                    3. Определить группу (group) по следующим правилам:
-                    - Если клиент новый → вернуть "Success_ID".
-                    - Если клиент взаимодействует меньше 2 месяцев → вернуть "Success_ID".
-                    - Если клиент не новый и взаимодействует больше 2 месяцев → вернуть "Support_ID".
-
-                    Важно:
-                    - Ответь строго в формате **валидного JSON**.
-                    - Не добавляй никаких пояснений или текста вне JSON.
-                    - Используй только указанные ID меток и групп.
-
-                    Сообщения чата:
-                    {messages_for_label}
-                    
-                    Retrieved labels using knowledge base:
-                    {labels_str}
-
-                    Список доступных меток:
-                    {LABELS}
-
-                    Список доступных групп:
-                    Success_ID = {SUCCESS_ID}
-                    Support_ID = {SUPPORT_ID}
-
-                    Формат ответа (пример):
-                    {{
-                        "labels": [id_label_1, id_label_2],
-                        "group": "96756"
-                    }}
-                    """
-
-                    response = await client.chat.completions.create(
+                    cleaned_response = await client.chat.completions.create(
                         model="gpt-4o",
-                        response_format={"type": "json_object"},
+                        response_format={"type": "text"},
                         messages=[
-                            {
-                                "role": "system",
-                                "content": "Ты помощник-классификатор. Отвечай строго в JSON формате.",
-                            },
-                            {"role": "user", "content": prompt},
+                            {"role": "system", "content": system_instr},
+                            {"role": "user", "content": response_invoke},
                         ],
                         temperature=0,
                     )
-                    result_labels_and_group = json.loads(
-                        response.choices[0].message.content
-                    )
-                    tokens_2 = response.usage.total_tokens
-                    logger.debug(f"labels and group: {result}")
-                    logger.debug(
-                        f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}"
-                    )
-                    print(
-                        f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}"
-                    )
+                    response_invoke = cleaned_response.choices[0].message.content
+                    logger.debug(f"Cleaned response: {response_invoke}")
+                except Exception as e:
+                    logger.error(f"Error cleaning response: {str(e)}")
 
+                try:
+                    saved = await crud.save_message( ## second query to db
+                        session=session,
+                        user_id=int(user_id),
+                        chat_id=chat_id,
+                        last_message=concatenated_messages,
+                        response=response_invoke,
+                        retrieved=point_ids,
+                    )
+                except Exception as e:
+                    logger.error(f"ERROR SAVE MESSAGE {str(e)}")
+                
+
+                try:
+                    code = await omnidesk_api.send_message(
+                        content=response_invoke, chat_id=chat_id
+                    )
+                    logger.info(f"message sended {code}")
+                except Exception as e:
+                    import traceback
+                    logger.error(f"ERROR SEND MESSAGE {str(e)}")
+                    logger.error(traceback.format_exc())
+
+                try:
+                    prompt_human_help = f"""
+                            --- История чата (последние 10 сообщений) ---
+                            {formatted_history}
+
+                            --- Запрос клиента (текущее сообщение) ---
+                            Пользователь({current_time.strftime('%Y-%m-%d %H:%M:%S %z')}): {concatenated_messages}
+
+                            Ответ на текущее сообщение от ИИ, используя RAG: {response_invoke}
+
+                            --- Классификация запроса: ---
+                            Проанализируй запрос. Верни `True`, если нужен реальный человек для ответа, и `False`, если ИИ может ответить самостоятельно, используя доступные данные или RAG.
+
+                            Важно:
+                            1. Если вопрос связан с тарифами, пакетами или стоимостью услуг — сразу возвращай `response_required: true`, даже если есть данные в RAG.
+                            2. Если запрос общий и ИИ может ответить сам — возвращай `response_required: false`.
+                            3. Ответ должен быть строго в формате JSON, например:
+
+                            Формат ответа (пример):
+                            {{
+                            "response_required": true
+                            }}
+                        """
+                    response_human_help = await client.chat.completions.create(
+                        model="gpt-4o",
+                        response_format={"type": "json_object"},
+                        messages=[{"role": "user", "content": prompt_human_help}],
+                        temperature=0,
+                    )
+                    need_human_help = json.loads(
+                        response_human_help.choices[0].message.content
+                    )
+                    logger.debug(f"response from llm human help : {need_human_help}")
+                except Exception as e:
+                    logger.error(f"Error llm call for human_help : {str(e)}")
+
+                if need_human_help and need_human_help.get("response_required"):
                     try:
-                        request_set_label = await omnidesk_api.set_labels_and_group(
-                            chat_id=chat_id,
-                            labels=result_labels_and_group["labels"],
-                            group=result_labels_and_group["group"],
+                        result = await omnidesk_api.call_human(
+                            chat_id=chat_id, user_id=user_id, message="ВЫЗОВ МЕНЕДЖЕРА"
                         )
+                        logger.debug(f"Result from call_human() : {result}")
                     except Exception as e:
-                        logger.error(f"ERROR SETTING LABELS AND GROUP {str(e)}")
+                        logger.error(f"Error call human : {str(e)}")
 
-                    try:
-                        set_true = await crud.set_labels_group(
-                            session=session, chat_id=chat_id
+                last_ten_msg = await crud.get_chat_history(session=session, chat_id=chat_id) ## 3
+                chat = await crud.get_chat_by_id(session=session, chat_id=chat_id) ## 4
+
+                if len(last_ten_msg) == 10:
+                    if not chat.labels_and_group:
+                        messages_for_label = ""
+                        labels: list[str] = []
+
+                        for m in last_ten_msg:
+                            messages_for_label += (
+                                f"User message:{m.message}\n Bot response:{m.response}\n"
+                            )
+                            retrieved_labels = await qdrant_helper.retrieve_labels(
+                                query_str=m.message
+                            )
+                            labels.extend(retrieved_labels)
+
+                        labels_str = ", ".join(labels)
+                        logger.debug(f"RETRIEVED LABELS {labels_str}")
+
+                        prompt = f"""
+                        Ты — классификатор чата.
+
+                        Твоя задача:
+                        1. Проанализировать последние 10 сообщений чата.
+                        2. Определить список релевантных меток (labels) анализируя Сообщения чата и Retrieved labels со списком доступных меток.
+                        3. Определить группу (group) по следующим правилам:
+                        - Если клиент новый → вернуть "Success_ID".
+                        - Если клиент взаимодействует меньше 2 месяцев → вернуть "Success_ID".
+                        - Если клиент не новый и взаимодействует больше 2 месяцев → вернуть "Support_ID".
+
+                        Важно:
+                        - Ответь строго в формате **валидного JSON**.
+                        - Не добавляй никаких пояснений или текста вне JSON.
+                        - Используй только указанные ID меток и групп.
+
+                        Сообщения чата:
+                        {messages_for_label}
+                        
+                        Retrieved labels using knowledge base:
+                        {labels_str}
+
+                        Список доступных меток:
+                        {LABELS}
+
+                        Список доступных групп:
+                        Success_ID = {SUCCESS_ID}
+                        Support_ID = {SUPPORT_ID}
+
+                        Формат ответа (пример):
+                        {{
+                            "labels": [id_label_1, id_label_2],
+                            "group": "96756"
+                        }}
+                        """
+
+                        response = await client.chat.completions.create(
+                            model="gpt-4o",
+                            response_format={"type": "json_object"},
+                            messages=[
+                                {
+                                    "role": "system",
+                                    "content": "Ты помощник-классификатор. Отвечай строго в JSON формате.",
+                                },
+                                {"role": "user", "content": prompt},
+                            ],
+                            temperature=0,
                         )
-                    except Exception as e:
-                        logger.error(f"ERROR SET LABELS AND GROUP {str(e)}")
-            logger.debug(
-                {
-                    "response": response_invoke,
-                    "prompt sended": system_message,
-                    # "tokens_used":tokens_1+tokens_2,
-                    "conversation": prompt,
-                    "saved": saved.chat_id,
-                    # "code":code,
-                    # "labels_and_group":result_labels_and_group,
-                    # "request_set_label_code":request_set_label,
-                    # "set_true":set_true
-                }
-            )
+                        result_labels_and_group = json.loads(
+                            response.choices[0].message.content
+                        )
+                        tokens_2 = response.usage.total_tokens
+                        logger.debug(f"labels and group: {result}")
+                        logger.debug(
+                            f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}"
+                        )
+                        print(
+                            f"labels: {result_labels_and_group['labels']}, group {result_labels_and_group['group']}"
+                        )
 
-            return True
+                        try:
+                            request_set_label = await omnidesk_api.set_labels_and_group(
+                                chat_id=chat_id,
+                                labels=result_labels_and_group["labels"],
+                                group=result_labels_and_group["group"],
+                            )
+                        except Exception as e:
+                            logger.error(f"ERROR SETTING LABELS AND GROUP {str(e)}")
+
+                        try:
+                            set_true = await crud.set_labels_group( ## 5
+                                session=session, chat_id=chat_id
+                            )
+                        except Exception as e:
+                            logger.error(f"ERROR SET LABELS AND GROUP {str(e)}")
+                logger.debug(
+                    {
+                        "response": response_invoke,
+                        "prompt sended": system_message,
+                        # "tokens_used":tokens_1+tokens_2,
+                        "conversation": prompt,
+                        "saved": saved.chat_id,
+                        # "code":code,
+                        # "labels_and_group":result_labels_and_group,
+                        # "request_set_label_code":request_set_label,
+                        # "set_true":set_true
+                    }
+                )
+
+                return True
 
         except Exception as e:
             logger.error(f"Error concatenate and save: {str(e)}")

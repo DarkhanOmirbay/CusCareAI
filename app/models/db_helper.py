@@ -9,10 +9,14 @@ from app.core.config import settings
 from sqlalchemy.orm import declarative_base
 
 class DatabaseHelper:
-    def __init__(self,url:str,echo:bool=False):
+    def __init__(self,url:str,pool_size:int,max_overflow:int,pool_timeout:int,pool_recycle:int,echo:bool=False,):
         self.engine = create_async_engine(
             url = url,
-            echo = echo
+            echo = echo,
+            pool_size=pool_size,
+            max_overflow = max_overflow,
+            pool_timeout = pool_timeout,
+            pool_recycle = pool_recycle
         )
         self.session_factory = async_sessionmaker(
             bind = self.engine,
@@ -41,6 +45,6 @@ class DatabaseHelper:
             
 
 
-db_helper = DatabaseHelper(url=settings.DB_URL,echo=settings.DB_ECHO)
+db_helper = DatabaseHelper(url=settings.DB_URL,pool_size=settings.POOL_SIZE,max_overflow=settings.MAX_OVERFLOW,pool_timeout=settings.POOL_TIMEOUT,pool_recycle=settings.POOL_RECYCLE,echo=settings.DB_ECHO)
 
 Base = db_helper.base
