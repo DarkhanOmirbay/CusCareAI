@@ -91,7 +91,7 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_HOSTS=local:redis:6379
+      - REDIS_HOST=redis
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     depends_on:
       - redis
