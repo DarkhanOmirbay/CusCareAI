@@ -1,28 +1,40 @@
-from fastapi import APIRouter,HTTPException,status,Depends,BackgroundTasks,Response
+from fastapi import APIRouter,status,BackgroundTasks,Response
 from app.schemas.chat import ChatRequest,WebhookRequest
 from app.core.logging import logger
 from app.core.langgraph.graph import agent,client
 from app.core.omnidesk.omnidesk_api import omnidesk_api
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.db_helper import db_helper
-from app.api.v1.chatbot import crud
-from app.api.v1.chatbot.helper import get_message_type
+from app.api.v1.chatbot.helper import get_message_type,is_working_hours
 from langchain_core.messages import HumanMessage,AIMessage
 import io
-from app.api.v1.chatbot.labels import LABELS,SUCCESS_ID,SUPPORT_ID,SYSTEM_PROMPT,SYSTEM_PROMPT_V2
-import json
-from datetime import datetime
-from zoneinfo import ZoneInfo
 from app.models.redis_helper import redis_helper
+from datetime import datetime, timedelta, timezone
+
+from app.api.v1.chatbot.labels import OUTSIDE_WORKING_HOURS_RESPONSE
+
 
 router = APIRouter()
 
- 
+ALMATY_TZ = timezone(timedelta(hours=5))
+
 @router.post("/chat")
 async def chat(chat_request:ChatRequest,bg:BackgroundTasks):
-    logger.info(f"chat_request {chat_request.chat_id} added to Background task")
-    bg.add_task(chat_process,chat_request)
-    return Response("accepted",status_code=status.HTTP_200_OK)
+    now = datetime.now(ALMATY_TZ)
+    if not is_working_hours(now):
+        logger.info(f"chat_request {chat_request.chat_id} received outside working hours")
+        try:
+            code = await omnidesk_api.send_message(content=OUTSIDE_WORKING_HOURS_RESPONSE, chat_id=chat_request.chat_id)
+            logger.info(f"message sended {code}")
+        except Exception as e:
+            import traceback
+            logger.error(f"ERROR SEND MESSAGE {str(e)}")
+            logger.error(traceback.format_exc())
+            
+        return Response("outside working hours",status_code=status.HTTP_200_OK)
+    else:    
+        logger.info(f"chat_request {chat_request.chat_id} added to Background task")
+        bg.add_task(chat_process,chat_request)
+        return Response("accepted",status_code=status.HTTP_200_OK)
+    
 
 
 @router.post("/webhook")
