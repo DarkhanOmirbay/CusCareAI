@@ -11,12 +11,10 @@ from app.api.v1.chatbot import crud
 from zoneinfo import ZoneInfo
 from langchain_core.messages import HumanMessage, AIMessage
 from app.api.v1.chatbot.labels import (
-    SYSTEM_PROMPT_V2,
     LABELS,
     SUCCESS_ID,
     SUPPORT_ID,
-    SYSTEM_PROMPT_V3,
-    SYSTEM_PROMPT_V4,
+    SYSTEM_PROMPT_V3
 )
 from app.core.langgraph.graph import agent, client
 from app.core.omnidesk.omnidesk_api import omnidesk_api

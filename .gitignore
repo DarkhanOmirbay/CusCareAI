@@ -34,3 +34,4 @@ app/core/omnidesk/omnidesk_api copy.py
 app/models/redis_helper copy.py
 
 app/models/data
+app/models/qdrant_point_changer.ipynb
