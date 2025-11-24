@@ -3,6 +3,9 @@ import httpx
 from app.models.models import Message
 from datetime import datetime,timezone
 
+WORK_START = 9
+WORK_END = 19
+
 async def get_message_type(last_message:str) -> str:
     """
     Классифицирует сообщение:
@@ -22,3 +25,7 @@ async def get_message_type(last_message:str) -> str:
     return "text"    
 
 
+def is_working_hours(dt:datetime) -> bool:
+    hour = dt.hour
+    return WORK_START <= hour < WORK_END
+    
