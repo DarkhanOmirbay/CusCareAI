@@ -14,7 +14,8 @@ from app.api.v1.chatbot.labels import (
     LABELS,
     SUCCESS_ID,
     SUPPORT_ID,
-    SYSTEM_PROMPT_V3
+    SYSTEM_PROMPT_V3,
+    SYSTEM_PROMPT_V4
 )
 from app.core.langgraph.graph import agent, client
 from app.core.omnidesk.omnidesk_api import omnidesk_api
@@ -282,7 +283,7 @@ class RedisHelper:
                         """
                     llm_message = HumanMessage(content=prompt)
                     try:
-                        system_message = AIMessage(content=SYSTEM_PROMPT_V3)
+                        system_message = AIMessage(content=SYSTEM_PROMPT_V4)
                         result = await agent.ainvoke(
                             {"last_message": llm_message, "system_message": system_message}
                         )
